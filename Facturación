@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor de Facturas Offline</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --primary: #0f172a;
+      --accent: #2563eb;
+      --text: #334155;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --border: #cbd5e1;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 12px; max-width: 500px; margin: 0 auto; }
+
+    header { background: var(--primary); color: white; padding: 16px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
+    header h1 { font-size: 1.2rem; }
+    header p { font-size: 0.8rem; opacity: 0.8; }
+
+    .card { background: var(--card); padding: 16px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .card h2 { font-size: 1rem; color: var(--primary); margin-bottom: 12px; border-bottom: 2px solid var(--bg); padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+
+    .filter-select { font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); }
+
+    .camera-box {
+      border: 2px dashed var(--accent);
+      background: #eff6ff;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 15px;
+      cursor: pointer;
+    }
+    .camera-box input { display: none; }
+    .camera-box label { cursor: pointer; font-size: 0.85rem; color: var(--accent); font-weight: bold; display: block; }
+    #previewImg { max-width: 100%; height: 100px; object-fit: cover; border-radius: 6px; margin-top: 8px; display: none; }
+
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; }
+
+    .btn-submit { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 0.95rem; cursor: pointer; margin-top: 5px; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+    .stat-box { background: var(--card); padding: 12px; border-radius: 10px; border: 1px solid var(--border); }
+    .stat-box p { font-size: 0.75rem; color: #64748b; }
+    .stat-box h3 { font-size: 1.1rem; color: var(--primary); margin-top: 4px; }
+
+    .recommendation-card { background: #fef3c7; border-left: 4px solid var(--warning); padding: 12px; border-radius: 8px; margin-bottom: 15px; }
+    .recommendation-card h3 { font-size: 0.85rem; color: #92400e; margin-bottom: 4px; }
+    .recommendation-card p { font-size: 0.8rem; color: #78350f; line-height: 1.35; }
+
+    .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--bg); font-size: 0.85rem; }
+    .btn-del { background: var(--danger); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Gestor de Facturas Offline</h1>
+    <p>Funciona 100% sin conexión a Internet</p>
+  </header>
+
+  <div class="recommendation-card" id="boxRecomendacion">
+    <h3>📊 Comparativa de Consumo</h3>
+    <p id="txtRecomendacion">Registra tus facturas indicando la fecha exacta. La app clasificará y comparará el gasto entre meses automáticamente.</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-box">
+      <p>Total Registrado</p>
+      <h3 id="lblTotal">$0.00</h3>
+    </div>
+    <div class="stat-box">
+      <p>IVA Acumulado</p>
+      <h3 id="lblIva">$0.00</h3>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Registrar Factura</h2>
+
+    <div class="camera-box">
+      <label for="fotoFactura">📷 Tomar foto a la factura</label>
+      <input type="file" id="fotoFactura" accept="image/*" capture="environment" onchange="mostrarVistaPrevia(event)">
+      <img id="previewImg" alt="Vista previa">
+    </div>
+
+    <form id="gastoForm">
+      <div class="form-group">
+        <label for="fechaGasto">Fecha de la factura</label>
+        <input type="date" id="fechaGasto" required>
+      </div>
+
+      <div class="form-group">
+        <label for="concepto">Concepto / Comercial</label>
+        <input type="text" id="concepto" placeholder="Ej. Supermaxi" required>
+      </div>
+
+      <div class="form-group">
+        <label for="categoria">Categoría</label>
+        <select id="categoria" required>
+          <option value="Alimentación">Alimentación</option>
+          <option value="Servicios">Servicios Básicos</option>
+          <option value="Salud">Salud / Medicina</option>
+          <option value="Educación">Educación</option>
+          <option value="Varios">Varios</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="subtotal">Monto Subtotal ($)</label>
+        <input type="number" id="subtotal" step="0.01" min="0" placeholder="0.00" required>
+      </div>
+
+      <div class="form-group">
+        <label for="tarifaIva">Tarifa de IVA (%)</label>
+        <select id="tarifaIva">
+          <option value="15">15%</option>
+          <option value="0">0%</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn-submit">Guardar Registro</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>
+      <span>Historial</span>
+      <select id="filtroMes" class="filter-select" onchange="actualizarInterfaz()">
+        <option value="todos">Ver Todo</option>
+        <option value="actual" selected>Mes Actual</option>
+      </select>
+    </h2>
+    <div id="listaGastos"></div>
+  </div>
+
+  <script>
+    let registros = JSON.parse(localStorage.getItem('facturas_offline_db')) || [];
+    let fotoBase64 = null;
+
+    document.getElementById('fechaGasto').valueAsDate = new Date();
+
+    function mostrarVistaPrevia(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          fotoBase64 = e.target.result;
+          const preview = document.getElementById('previewImg');
+          preview.src = fotoBase64;
+          preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    document.getElementById('gastoForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const fechaVal = document.getElementById('fechaGasto').value;
+      const concepto = document.getElementById('concepto').value;
+      const categoria = document.getElementById('categoria').value;
+      const subtotal = parseFloat(document.getElementById('subtotal').value);
+      const tarifaIva = parseFloat(document.getElementById('tarifaIva').value);
+
+      const iva = subtotal * (tarifaIva / 100);
+      const total = subtotal + iva;
+      const periodo = fechaVal.substring(0, 7);
+
+      const nuevoRegistro = {
+        id: Date.now(),
+        fecha: fechaVal,
+        periodo: periodo,
+        concepto,
+        categoria,
+        subtotal,
+        iva,
+        total,
+        foto: fotoBase64
+      };
+
+      registros.unshift(nuevoRegistro);
+      guardar();
+      
+      document.getElementById('gastoForm').reset();
+      document.getElementById('fechaGasto').valueAsDate = new Date();
+      document.getElementById('previewImg').style.display = 'none';
+      fotoBase64 = null;
+    });
+
+    function guardar() {
+      localStorage.setItem('facturas_offline_db', JSON.stringify(registros));
+      actualizarInterfaz();
+    }
+
+    function eliminar(id) {
+      registros = registros.filter(item => item.id !== id);
+      guardar();
+    }
+
+    function actualizarInterfaz() {
+      const lista = document.getElementById('listaGastos');
+      const filtro = document.getElementById('filtroMes').value;
+      lista.innerHTML = '';
+
+      const mesActualKey = new Date().toISOString().substring(0, 7);
+
+      let registrosFiltrados = registros;
+      if (filtro === 'actual') {
+        registrosFiltrados = registros.filter(item => item.periodo === mesActualKey);
+      }
+
+      let totalGastado = 0;
+      let totalIva = 0;
+
+      registrosFiltrados.forEach(item => {
+        totalGastado += item.total;
+        totalIva += item.iva;
+
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `
+          <div>
+            <strong>${item.concepto}</strong> ${item.foto ? '📸' : ''}<br>
+            <small>${item.categoria} • Fecha: ${item.fecha}</small>
+          </div>
+          <div style="text-align: right;">
+            <strong>$${item.total.toFixed(2)}</strong><br>
+            <button class="btn-del" onclick="eliminar(${item.id})">🗑️</button>
+          </div>
+        `;
+        lista.appendChild(row);
+      });
+
+      document.getElementById('lblTotal').textContent = `$${totalGastado.toFixed(2)}`;
+      document.getElementById('lblIva').textContent = `$${totalIva.toFixed(2)}`;
+
+      generarComparativa();
+    }
+
+    function generarComparativa() {
+      const txt = document.getElementById('txtRecomendacion');
+      
+      const facturasJulio = registros.filter(r => r.periodo.endsWith('-07'));
+      const facturasAgosto = registros.filter(r => r.periodo.endsWith('-08'));
+
+      const totalJulio = facturasJulio.reduce((acc, r) => acc + r.total, 0);
+      const totalAgosto = facturasAgosto.reduce((acc, r) => acc + r.total, 0);
+
+      if (facturasJulio.length > 0 && facturasAgosto.length > 0) {
+        if (totalAgosto > totalJulio) {
+          const diff = totalAgosto - totalJulio;
+          txt.textContent = `📊 Comparativa: En agosto vas gastando $${totalAgosto.toFixed(2)}, lo que supera por $${diff.toFixed(2)} al total de julio ($${totalJulio.toFixed(2)}).`;
+        } else {
+          txt.textContent = `📊 Comparativa: En agosto llevas $${totalAgosto.toFixed(2)} registrados. Mantienes un menor gasto comparado con julio ($${totalJulio.toFixed(2)}).`;
+        }
+      } else if (facturasJulio.length > 0) {
+        txt.textContent = `📌 Memoria Histórica: Tienes $${totalJulio.toFixed(2)} registrados en julio. Cuando agregues facturas de agosto con su fecha correspondiente, la app calculará la diferencia.`;
+      } else {
+        txt.textContent = `💡 Consejo: Al tomar la foto de la factura, ajusta la fecha al mes correcto (julio o agosto) para que la app separe los gastos automáticamente.`;
+      }
+    }
+
+    actualizarInterfaz();
+  </script>
+</body>
+</html>
